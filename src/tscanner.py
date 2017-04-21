@@ -4,6 +4,7 @@ class TScanner:
     """
 
     def __init__(self):
+        initialize_kernel_registry()
         pass
 
     def ingest(self, file_list):
