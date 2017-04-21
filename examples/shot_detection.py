@@ -1,0 +1,1 @@
+# Illustrate the end-to-end execution of how to detect shots in a video
