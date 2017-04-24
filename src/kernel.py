@@ -21,7 +21,7 @@ class Kernel:
         """
         raise NotImplementedError()
 
-    def reset(self, kernel_name):
+    def reset(self):
         """
         Forces the kernel to forget any internal state
         """
