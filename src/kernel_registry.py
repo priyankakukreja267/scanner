@@ -12,7 +12,7 @@ class Kernel_Registry:
         '''
         raise NotImplementedError()
 
-    def register_new_kernel(self, kernel_name, kernel_args, kernel_impl):
+    def register_new_kernel(self, kernel_name, kernel_impl):
         '''
         Adds new kernel to the registry
         :param kernel_name: name of the kernel to register (names are unique)
@@ -25,6 +25,6 @@ class Kernel_Registry:
     def lookup_registry(self, kernel_name):
         '''
         Looks for a specific kernel in the registry
-        Returns true if found, else false
+        Returns the kernel if found, else null
         '''
         pass

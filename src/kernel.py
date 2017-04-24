@@ -14,7 +14,7 @@ class Kernel:
     def __init__(self):
         raise NotImplementedError()
 
-    def apply(self, kernel_name, inputs):
+    def apply(self, inputs):
         """
         Apply the kernel to some input
         :return: A tuple representing values to insert into rows
