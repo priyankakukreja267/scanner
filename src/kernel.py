@@ -14,14 +14,26 @@ class Kernel:
     def __init__(self):
         raise NotImplementedError()
 
-    def apply(self, kernel_name, inputs):
+    def get_input_dtypes(self):
+        """
+        :return: A list of dtypes 
+        """
+        raise NotImplementedError()
+
+    def get_output_dtypes(self):
+        """
+        :return: A list of dtypes
+        """
+        raise NotImplementedError()
+
+    def apply(self, inputs):
         """
         Apply the kernel to some input
         :return: A tuple representing values to insert into rows
         """
         raise NotImplementedError()
 
-    def reset(self, kernel_name):
+    def reset(self):
         """
         Forces the kernel to forget any internal state
         """
