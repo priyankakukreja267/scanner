@@ -5,6 +5,7 @@ import cv2
 
 
 video = cv2.VideoCapture("../data/kite.mkv", cv2.CAP_FFMPEG)
+print(video.isOpened())
 
 def blur(image):
     i = Image.fromarray(image)
