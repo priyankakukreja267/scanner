@@ -4,7 +4,7 @@ class TScanner:
     """
 
     def __init__(self):
-        initialize_kernel_registry()
+        #kernel_registry.initialize_kernel_registry()
         pass
 
     def ingest(self, file_list):
@@ -27,6 +27,7 @@ class TScanner:
         """
         Declare the named column as an output column (i.e. it will be present in the final database).
         """
+        pass
 
     def run(self):
         """
