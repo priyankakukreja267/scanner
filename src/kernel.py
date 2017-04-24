@@ -14,6 +14,18 @@ class Kernel:
     def __init__(self):
         raise NotImplementedError()
 
+    def get_input_dtypes(self):
+        """
+        :return: A list of dtypes 
+        """
+        raise NotImplementedError()
+
+    def get_output_dtypes(self):
+        """
+        :return: A list of dtypes
+        """
+        raise NotImplementedError()
+
     def apply(self, inputs):
         """
         Apply the kernel to some input
