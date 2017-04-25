@@ -104,7 +104,7 @@ class _Schema:
 class Database:
     """
     An image database. The database is stored on disk, and streamed as required.
-             
+
     Usage:
          - To use a database as input, call table_generators(), which will return a list of TableGenerator objects,
            one per table in the database. A TableGenerator is a python generator and will sequentially return
