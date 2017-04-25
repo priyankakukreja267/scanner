@@ -11,3 +11,6 @@ class ColumnSpecification:
             if dtype is None:
                 raise Exception("For non-video columns, you must specify a dtype explicitly.")
             self.dtype = dtype
+
+    def get_dtype(self):
+        return self.dtype
