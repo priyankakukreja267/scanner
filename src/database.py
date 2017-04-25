@@ -1,8 +1,12 @@
 from .util.unique_id_dict import UniqueIDDict
+from .column_specification import ColumnSpecification
+
 import pickle
-import json
 import cv2
 import os
+
+
+DEFAULT_COLUMN_NAME = "def_col"
 
 
 class _ColumnReader:
@@ -82,20 +86,24 @@ class _DataColumnWriter(_ColumnWriter):
 
 class _Schema:
     def __init__(self, path):
+        self.path = path
         try:
             with open(path) as schema_file:
-                self.schema = json.load(schema_file)
+                self.schema = pickle.load(schema_file)
         except FileNotFoundError:
-            self.schema = dict()
+            self.schema = {DEFAULT_COLUMN_NAME: ColumnSpecification(video=True)}
 
-    def add_column(self, name, video):
-        self.schema[name] = video
+    def add_column(self, name, video, dtype):
+        self.schema[name] = ColumnSpecification(video, dtype)
+
+    def save(self):
+        with open(self.path, 'w') as schema_file:
+            pickle.dump(self, schema_file)
 
 
 class Database:
     """
     An image database. The database is stored on disk, and streamed as required.
-    
              
     Usage:
          - To use a database as input, call table_generators(), which will return a list of TableGenerator objects,
@@ -125,7 +133,7 @@ class Database:
         """
         :return: a list of column readers for this column. There will be one per table in the database.
         """
-        if column_name == "source":
+        if column_name == DEFAULT_COLUMN_NAME:
             return [_VideoColumnReader(fname) for fname in self.files.objects()]
 
         if column_name not in self.schema.schema.keys():
@@ -137,7 +145,7 @@ class Database:
         else:
             return [_DataColumnReader("{}_{}".format(id, column_name)) for id in self.files.ids()]
 
-    def add_column(self, name, video=False):
+    def add_column(self, name, video=False, dtype=None):
         """
         Adds a column to a database.
         :param name: Name of the new column
@@ -147,7 +155,10 @@ class Database:
         if video:
             raise Exception("Writing new video columns is not yet supported.")
 
-        self.schema.add_column(name, video)
+        if name == DEFAULT_COLUMN_NAME or name in self.schema.schema.keys():
+            raise Exception("Column {} already exists.".format(name))
+
+        self.schema.add_column(name, video, dtype)
 
         return [_DataColumnWriter("{}_{}".format(id, name)) for id in self.files.ids()]
 
@@ -164,4 +175,10 @@ class Database:
         :return: A dictionnary of { column_name => is_video } representing all available columns
          in the database and whether they will be encoded as video.
         """
-        return {**self.schema.schema, **{"source": True}}
+        return self.schema.schema.keys()
+
+    def get_column_dtype(self, name):
+        """
+        :return: The dtype of the specified column
+        """
+        return self.schema.schema[name].dtype
