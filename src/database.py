@@ -1,5 +1,6 @@
 from .util.unique_id_dict import UniqueIDDict
 from .column_specification import ColumnSpecification
+from collections import Iterator
 
 import pickle
 import cv2
@@ -8,7 +9,7 @@ import os
 
 DEFAULT_COLUMN_NAME = "def_col"
 
-class _ColumnReader:
+class _ColumnReader(Iterator):
     """
     Generator class that will output the rows of a table one by one. (Abstract)
 
@@ -22,38 +23,65 @@ class _ColumnReader:
         """Closes the file"""
         raise NotImplementedError()
 
+    @staticmethod
+    def make_reader(video, files):
+        if video:
+            return _VideoColumnReader(files)
+        else:
+            return _DataColumnReader(files)
+
 
 class _DataColumnReader(_ColumnReader):
-    def __init__(self, file_path):
-        self.file = open(file_path)
+    def __init__(self, files):
+        self.files = files
+        self.current_file = open(self.files[0], 'rb')
 
     def __next__(self):
-        return pickle.load(self.file)
+        try:
+            return pickle.load(self.current_file)
+        except EOFError:
+            self.current_file.close()
+            del self.files[0]
+            if not self.files:
+                return StopIteration
+            else:
+                self.current_file = open(self.files[0], 'rb')
+                return next(self)
 
     def __del__(self):
         self.close()
 
     def close(self):
-        self.file.close()
+        self.current_file.close()
 
 
 class _VideoColumnReader(_ColumnReader):
-    def __init__(self, file_path):
-        self.file = cv2.VideoCapture(file_path, cv2.CAP_FFMPEG)
-        if not self.file.isOpened():
-            raise Exception("Could not open {}.".format(file_path))
+    def _open_next_file(self):
+        self.current_file = cv2.VideoCapture(self.files[0], cv2.CAP_FFMPEG)
+        if not self.current_file.isOpened():
+            raise Exception("Could not open {}.".format(self.files[0]))
+
+    def __init__(self, files):
+        self.files = files
+        self._open_next_file()
 
     def __next__(self):
-        ret, frame = self.file.read()
+        ret, frame = self.current_file.read()
         if not ret:
-            raise StopIteration
-        return frame
+            self.current_file.release()
+            del self.files[0]
+            if not self.files:
+                raise StopIteration
+            else:
+                self._open_next_file()
+                return next(self)
+        return frame[:, :, ::-1]
 
     def __del__(self):
         self.close()
 
     def close(self):
-        self.file.close()
+        self.current_file.release()
 
 
 class _ColumnWriter:
@@ -61,43 +89,125 @@ class _ColumnWriter:
         """Writes data in the next row in this column"""
         raise NotImplementedError()
 
+    def next_file(self):
+        """Returns the next file in sequence"""
+        raise NotImplementedError()
+
     def close(self):
         """Closes the file"""
         raise NotImplementedError()
 
+    @staticmethod
+    def make_writer(video, files):
+        if video:
+            return _VideoColumnWriter(files)
+        else:
+            return _DataColumnWriter(files)
+
 
 class _DataColumnWriter(_ColumnWriter):
-    def __init__(self, file_path):
-        self.file = open(file_path, 'w')
+    def __init__(self, files):
+        self.files = files
+        self.current_file = open(self.files[0], 'wb')
 
     def write_row(self, data):
-        pickle.dump(data, self.file)
+        pickle.dump(data, self.current_file)
+
+    def next_file(self):
+        self.current_file.close()
+        del self.files[0]
+        self.current_file = open(self.files[0], 'wb')
 
     def __del__(self):
         self.close()
 
     def close(self):
-        self.file.close()
+        self.current_file.close()
 
 
-# TODO: VideoColumnWriter
+class _VideoColumnWriter(_ColumnWriter):
+    def _open_next_file(self):
+        fourcc = cv2.VideoWriter_fourcc('H', '2', '6', '4')
+        # TODO: have a way to set output parameters
+        self.current_file = cv2.VideoWriter(self.files[0], fourcc, 20.0, (640, 480))
+
+    def __init__(self, files):
+        self.files = files
+        self._open_next_file()
+
+    def write_row(self, frame):
+        self.current_file.write(frame[:, :, ::-1])
+
+    def next_file(self):
+        self.current_file.release()
+        self._open_next_file()
+
+    def close(self):
+        self.current_file.release()
+
+
+class _RowReader(Iterator):
+    """
+    A class to read rows of the specified columns
+    """
+    def __init__(self, column_readers):
+        self.readers = column_readers
+
+    def __next__(self):
+        return [next(reader) for reader in self.readers]
+
+    def close(self):
+        for r in self.readers:
+            r.close()
+
+
+class _RowWriter(Iterator):
+    """
+    A class to write to rows, blah
+    """
+    def __init__(self, column_writers):
+        self.writers = column_writers
+
+    def write_row(self, data):
+        for d, w in zip(data, self.writers):
+            w.write_row(d)
+
+    def next_file(self):
+        for w in self.writers:
+            w.next_file()
+
+    def close(self):
+        for w in self.writers:
+            w.close()
 
 
 class _Schema:
     def __init__(self, path):
         self.path = path
-        try:
-            with open(path) as schema_file:
-                self.schema = pickle.load(schema_file)
-        except FileNotFoundError:
-            self.schema = {DEFAULT_COLUMN_NAME: ColumnSpecification(video=True)}
+        self.columns = {DEFAULT_COLUMN_NAME: ColumnSpecification(DEFAULT_COLUMN_NAME, video=True)}
+        self.save()
 
     def add_column(self, name, video, dtype):
-        self.schema[name] = ColumnSpecification(video, dtype)
+        self.columns[name] = ColumnSpecification(name, video, dtype)
+        self.save()
+
+    def del_column(self, name):
+        if name not in self.columns.keys():
+            raise Exception("Unknown column {}")
+        del self.columns[name]
+        self.save()
 
     def save(self):
-        with open(self.path, 'w') as schema_file:
+        with open(self.path, 'wb') as schema_file:
             pickle.dump(self, schema_file)
+
+    @staticmethod
+    def load_or_create(path):
+        try:
+            with open(path, 'rb') as schema_file:
+                return pickle.load(schema_file)
+        except FileNotFoundError:
+            return _Schema(path)
 
 
 class Database:
@@ -126,40 +236,63 @@ class Database:
         """
         self.directory = directory
         self.files = UniqueIDDict()
-        self.schema = _Schema(os.path.join(directory, ".schema"))
+        self.schema = _Schema.load_or_create(os.path.join(directory, ".schema"))
 
-    def column_readers(self, column_name):
-        """
-        :return: a list of column readers for this column. There will be one per table in the database.
-        """
+    def _fnames_for_col(self, column_name):
         if column_name == DEFAULT_COLUMN_NAME:
-            return [_VideoColumnReader(fname) for fname in self.files.objects()]
+            return list(self.files.objects())
 
-        if column_name not in self.schema.schema.keys():
-            raise Exception("Unknown column {}".format(column_name))
-
-        is_video = self.schema.schema[column_name]
-        if is_video:
-            return [_VideoColumnReader("{}_{}".format(id, column_name)) for id in self.files.ids()]
+        if self.schema.columns[column_name].video:
+            return ["{}_{}.mp4".format(fname, column_name) for fname in self.files.ids()]
         else:
-            return [_DataColumnReader("{}_{}".format(id, column_name)) for id in self.files.ids()]
+            return ["{}_{}.dat".format(fname, column_name) for fname in self.files.ids()]
 
-    def add_column(self, name, video=False, dtype=None):
+    def add_column(self, colspec):
         """
         Adds a column to a database.
         :param name: Name of the new column
         :param video: Whether the column should be compressed as video data
-        :return: A list of TableColumnGenerators.
         """
-        if video:
-            raise Exception("Writing new video columns is not yet supported.")
+        if colspec.name == DEFAULT_COLUMN_NAME or colspec.name in self.schema.columns.keys():
+            raise Exception("Column {} already exists.".format(colspec.name))
 
-        if name == DEFAULT_COLUMN_NAME or name in self.schema.schema.keys():
-            raise Exception("Column {} already exists.".format(name))
+        self.schema.add_column(colspec.name, colspec.video, colspec.dtype)
 
-        self.schema.add_column(name, video, dtype)
+    def reader(self, column_names):
+        """
+        :return: a list of column readers for this column. There will be one per table in the database.
+        """
+        readers = []
 
-        return [_DataColumnWriter("{}_{}".format(id, name)) for id in self.files.ids()]
+        for column in column_names:
+            if column not in self.schema.columns.keys():
+                raise Exception("Unknown column {}".format(column))
+            video = self.schema.columns[column].video
+            readers.append(_ColumnReader.make_reader(video, self._fnames_for_col(column)))
+
+        return _RowReader(readers)
+
+    def writer(self, column_names):
+        """
+        :param column_names: Names of columns the reader should accept
+        :return: 
+        """
+        writers = []
+
+        for column in column_names:
+            if column not in self.schema.columns.keys():
+                raise Exception("Unknown column {}".format(column))
+            video = self.schema.columns[column].video
+            writers.append(_ColumnWriter.make_writer(video, self._fnames_for_col(column)))
+
+        return _RowWriter(writers)
+
+    def clear_column(self, column_name):
+        self.schema.del_column(column_name)
+
+        for file in self._fnames_for_col(column_name):
+            print("** Removing {}".format(file))
+            os.unlink(file)
 
     def ingest(self, files):
         """
@@ -174,10 +307,10 @@ class Database:
         :return: A dictionnary of { column_name => is_video } representing all available columns
          in the database and whether they will be encoded as video.
         """
-        return self.schema.schema.keys()
+        return self.schema.columns.keys()
 
     def get_column_dtype(self, name):
         """
         :return: The dtype of the specified column
         """
-        return self.schema.schema[name].dtype
+        return self.schema.columns[name].dtype
