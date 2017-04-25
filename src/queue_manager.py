@@ -12,27 +12,27 @@ class QueueManager:
         db = Database("some_directory")
         qm = QueueManager(db, input_columns)
         
-        inputs = qm.dequeue()
+        inputs = qm.dequeue() # is a list of the input columns
         
-        x = ... (depends on inputs, is a tuple of the correct stuff)
+        x = ... # (depends on inputs, is a list of the correct stuff)
         
         out = qm.enqueue(x, (ColumnSpecification("out_col", video=True), ColumnSpecification("data_col", dtype='float')))
-        
         qm.run_tensor(out)
         
     """
-    def __init__(self, db, input_columns, output_columns):
+    def __init__(self, db, input_columns):
         """
         Generate a QueueManager object from a database and a
         :param db: A Database object
         :param input_columns: Name of input columns
-        :param output_columns: (name, colspec) tuples of output columns
         """
-        input_fields = [(name, db.get_column_dtype(name)) for name in input_columns]
-        self.input_queue = tf.FIFOQueue(100, np.dtype(input_fields))
+        self.db = db
 
-        output_fields = [(name, dtype) for (name, dtype) in output_columns]
-        self.output_queue = tf.FIFOQueue(100, np.dtype(output_fields))
+        input_fields = [db.get_column_dtype(name) for name in input_columns]
+        self.input_queue = tf.FIFOQueue(100, input_fields)
+        self.input_columns = input_columns
+
+        self.output_queue = None
 
     def dequeue(self):
         """
@@ -40,15 +40,36 @@ class QueueManager:
         """
         return self.input_queue.dequeue()
 
-    def enqueue(self, to_queue):
+    def enqueue(self, to_queue, colspecs):
         """
-        :return: A tensor that will enqueue the element when called
+        :param to_queue: A list or tuple tensor with the types specified in colspecs
+        :param colspecs: A list or tuple of column specifications
+        :return: An enqueue tensor, which you want to pass to qm.run_tensor().
         """
+        if self.output_queue != None:
+            raise Exception("You're trying to call enqueue more than once.")
+
+        output_fields = [cs.get_dtype() for cs in colspecs]
+        self.output_queue = tf.FIFOQueue(100, output_fields)
+
         return self.output_queue.enqueue(to_queue)
 
-    def run_tensor(self, ):
+    def run_tensor(self, tensor):
         """
-        Starts two threads to fill up the input queue and empty the output queue.
-        :return: A tf.Coordinator that signals when the processing pipeline should stop running.
+        :param tensor: The enqueue tensor to run
         """
-        pass
+        # OK we're doing bad stuff lol
+
+        if self.output_queue is None:
+            raise Exception(
+                "You must call enqueue first. Also if you haven't done so yet you're doing something wrong.")
+
+        input_generators = [self.db.column_readers(cname) for cname in self.input_columns]
+        # Get generators for one file at a time
+        input_generators = list(zip(*input_generators))
+
+        for file in input_generators:
+            for row in zip(*[file]):
+                print()
+
+        # DO STUFF HERE
