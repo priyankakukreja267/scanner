@@ -29,11 +29,13 @@ class QueueManager:
         self.db = db
 
         self.input_fields = [db.get_column_dtype(name) for name in input_columns]
-        # self.input_queue = tf.FIFOQueue(100, self.input_fields)
         self.input_columns = input_columns
+        self.input_reader = db.reader(self.input_columns)
 
         self.output_fields = None
         self.output_columns = None
+
+        # self.input_queue = tf.FIFOQueue(100, self.input_fields)
         # self.output_queue = None
 
     def dequeue(self):
@@ -50,12 +52,14 @@ class QueueManager:
         """
         # if self.output_queue != None:
         #     raise Exception("You're trying to call enqueue more than once.")
-
-        self.output_fields = [cs.get_dtype() for cs in colspecs]
-        self.output_columns = [cs.name for cs in colspecs]
+        #
+        # self.output_fields = [cs.get_dtype() for cs in colspecs]
         # self.output_queue = tf.FIFOQueue(100, self.output_fields)
 
-        return tf.py_func()
+        self.output_columns = [cs.name for cs in colspecs]
+        self.output_writer = self.db.writer(self.output_columns)
+
+        return to_queue
 
     def run_tensor(self, tensor):
         """
@@ -66,4 +70,9 @@ class QueueManager:
             raise Exception(
                 "You must call enqueue first. Also if you haven't done so yet you're doing something wrong.")
 
-        # DO STUFF HERE
+        with tf.Session() as sess:
+            for changed_file, row in self.input_reader:
+                if changed_file:
+                    self.output_writer.next_file()
+
+                self.output_writer.write_row(sess.run(tensor, feed_dict={"input_dequeue": row}))
