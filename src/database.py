@@ -1,10 +1,11 @@
-from .util.unique_id_dict import UniqueIDDict
-from .column_specification import ColumnSpecification
+from util.unique_id_dict import UniqueIDDict
+from column_specification import ColumnSpecification
 from collections import Iterator
 
 import pickle
 import cv2
 import os
+import numpy as np
 
 
 DEFAULT_COLUMN_NAME = "def_col"
@@ -310,6 +311,9 @@ class Database:
         return _RowWriter(writers)
 
     def clear_column(self, column_name):
+        if column_name == DEFAULT_COLUMN_NAME:
+            raise Exception("Cannot remove default column")
+
         self.info.del_column(column_name)
 
         for file in self._fnames_for_col(column_name):
@@ -329,10 +333,13 @@ class Database:
         :return: A dictionnary of { column_name => is_video } representing all available columns
          in the database and whether they will be encoded as video.
         """
-        return self.columns.keys()
+        return list(self.columns.keys())
 
     def get_column_dtype(self, name):
         """
         :return: The dtype of the specified column
         """
         return self.columns[name].dtype
+
+    def has_column(self, name):
+        return name in self.columns
