@@ -28,17 +28,21 @@ class QueueManager:
         """
         self.db = db
 
-        input_fields = [db.get_column_dtype(name) for name in input_columns]
-        self.input_queue = tf.FIFOQueue(100, input_fields)
+        self.input_fields = [db.get_column_dtype(name) for name in input_columns]
         self.input_columns = input_columns
+        self.input_reader = db.reader(self.input_columns)
 
-        self.output_queue = None
+        self.output_fields = None
+        self.output_columns = None
+
+        # self.input_queue = tf.FIFOQueue(100, self.input_fields)
+        # self.output_queue = None
 
     def dequeue(self):
         """
         :return: A tensor that will dequeue an element from the input queue when run 
         """
-        return self.input_queue.dequeue()
+        return tf.placeholder(self.input_fields, name="input_dequeue")
 
     def enqueue(self, to_queue, colspecs):
         """
@@ -46,30 +50,29 @@ class QueueManager:
         :param colspecs: A list or tuple of column specifications
         :return: An enqueue tensor, which you want to pass to qm.run_tensor().
         """
-        if self.output_queue != None:
-            raise Exception("You're trying to call enqueue more than once.")
+        # if self.output_queue != None:
+        #     raise Exception("You're trying to call enqueue more than once.")
+        #
+        # self.output_fields = [cs.get_dtype() for cs in colspecs]
+        # self.output_queue = tf.FIFOQueue(100, self.output_fields)
 
-        output_fields = [cs.get_dtype() for cs in colspecs]
-        self.output_queue = tf.FIFOQueue(100, output_fields)
+        self.output_columns = [cs.name for cs in colspecs]
+        self.output_writer = self.db.writer(self.output_columns)
 
-        return self.output_queue.enqueue(to_queue)
+        return to_queue
 
     def run_tensor(self, tensor):
         """
         :param tensor: The enqueue tensor to run
         """
-        # OK we're doing bad stuff lol
 
-        if self.output_queue is None:
+        if self.output_columns is None:
             raise Exception(
                 "You must call enqueue first. Also if you haven't done so yet you're doing something wrong.")
 
-        input_generators = [self.db.column_readers(cname) for cname in self.input_columns]
-        # Get generators for one file at a time
-        input_generators = list(zip(*input_generators))
+        with tf.Session() as sess:
+            for changed_file, row in self.input_reader:
+                if changed_file:
+                    self.output_writer.next_file()
 
-        for file in input_generators:
-            for row in zip(*[file]):
-                print()
-
-        # DO STUFF HERE
+                self.output_writer.write_row(sess.run(tensor, feed_dict={"input_dequeue": row}))

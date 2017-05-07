@@ -1,6 +1,8 @@
 .idea/
 data/
 doc/
+test/db_dir
+test/frames
 
 ### Python template
 # Byte-compiled / optimized / DLL files

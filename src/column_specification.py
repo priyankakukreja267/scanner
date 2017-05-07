@@ -2,7 +2,8 @@ import numpy as np
 
 
 class ColumnSpecification:
-    def __init__(self, video=False, dtype=None):
+    def __init__(self, name, video=False, dtype=None):
+        self.name = name
         self.video = video
         if self.video:
             self.dtype = np.dtype('uint8')
