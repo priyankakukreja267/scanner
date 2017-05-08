@@ -9,6 +9,9 @@ import numpy as np
 
 
 DEFAULT_COLUMN_NAME = "def_col"
+OUTPUT_FRAMERATE = 24
+H264_FOURCC = cv2.VideoWriter_fourcc('H', '2', '6', '4')
+
 
 class _ColumnReader(Iterator):
     """
@@ -133,24 +136,25 @@ class _DataColumnWriter(_ColumnWriter):
 
 
 class _VideoColumnWriter(_ColumnWriter):
-    def _open_next_file(self):
+    def _open_next_file(self, shape):
         print("**** Warning: writing to video is poorly supported for now.")
-        fourcc = cv2.VideoWriter_fourcc('H', '2', '6', '4')
-        # TODO: have a way to set output parameters
-        self.current_file = cv2.VideoWriter(self.files[0], fourcc, self._framerate, self._size)
 
-    def __init__(self, files, framerate, size):
+        # TODO: have a way to set output parameters
+        self.current_file = cv2.VideoWriter(self.files[0], H264_FOURCC, OUTPUT_FRAMERATE, shape)
+        self._opened = True
+
+    def __init__(self, files):
         self.files = files
-        self._framerate = framerate
-        self._size = size
-        self._open_next_file()
+        self._opened = False
 
     def write_row(self, frame):
+        if not self._opened:
+            self._open_next_file(frame.shape)
         self.current_file.write(frame[:, :, ::-1])
 
     def next_file(self):
         self.current_file.release()
-        self._open_next_file()
+        self._opened = False
 
     def close(self):
         self.current_file.release()
