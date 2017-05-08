@@ -1,1 +1,0 @@
-# python lib image or opencv

@@ -33,7 +33,7 @@ class TScanner:
         self.tensors['input_columns'] = input_columns # list of input cols
         self.qm = QueueManager(self.db, self.tensors['input_columns'])
         self.tensors['selected_columns'] = self.qm.get_selected_columns(input_columns) # ?
-        self.tensors['output_columns'] = kernel.apply() # list of output columns
+        self.tensors['output_columns'] = kernel.apply(input_columns) # list of output columns
         
     def declare_output(self, column):
         """
