@@ -137,10 +137,12 @@ class _VideoColumnWriter(_ColumnWriter):
         print("**** Warning: writing to video is poorly supported for now.")
         fourcc = cv2.VideoWriter_fourcc('H', '2', '6', '4')
         # TODO: have a way to set output parameters
-        self.current_file = cv2.VideoWriter(self.files[0], fourcc, 20.0, (640, 480))
+        self.current_file = cv2.VideoWriter(self.files[0], fourcc, self._framerate, self._size)
 
-    def __init__(self, files):
+    def __init__(self, files, framerate, size):
         self.files = files
+        self._framerate = framerate
+        self._size = size
         self._open_next_file()
 
     def write_row(self, frame):
@@ -166,7 +168,7 @@ class _RowReader(Iterator):
         changed_file = [v[0] for v in values]
         if any(changed_file):
             if not all(changed_file):
-                raise Exception("All inputs do not have the same length!")
+                raise Exception("All input files do not have the same length!")
 
         return any(changed_file), [v[1] for v in values]
 
@@ -233,14 +235,6 @@ class _DatabaseInfo:
 class Database:
     """
     An image database. The database is stored on disk, and streamed as required.
-             
-    Usage:
-         - To use a database as input, call table_generators(), which will return a list of TableGenerator objects,
-           one per table in the database. A TableGenerator is a python generator and will sequentially return
-           every row in the table
-         - To add a column to the DB (as output), call add_column() with the name of the new column. This will
-           return a list of TableColumnWriter objects (guaranteed to be in the same order as the TableGenerators
-           returned by table_generators()), on which you can call write_row to write data into successive rows.
     
     Storage model:
          - Video files are stored on disk as video files
@@ -283,7 +277,7 @@ class Database:
 
     def reader(self, column_names):
         """
-        :return: a list of column readers for this column. There will be one per table in the database.
+        :return: a reader for these columns. There will be one per table in the database.
         """
         readers = []
 
@@ -298,7 +292,7 @@ class Database:
     def writer(self, column_names):
         """
         :param column_names: Names of columns the reader should accept
-        :return: 
+        :return: a writer for these columns
         """
         writers = []
 
