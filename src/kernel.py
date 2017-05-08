@@ -33,7 +33,7 @@ class Kernel:
         """
         raise NotImplementedError()
 
-    def reset(self):
+    def reset(self): # we can have stateful kernels now
         """
         Forces the kernel to forget any internal state
         """

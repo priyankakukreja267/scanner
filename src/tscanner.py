@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from src import database
 
 class TScanner:
     """
@@ -12,7 +13,7 @@ class TScanner:
         npArr = np.zeros(shape=(1,nPixels)) # SIZE??
         self.input = tf.Variable(npArr, name="input")
         self.stored_columns = list()
-        self.db = Database(some_dir)
+        self.db = database.Database(some_dir)
 
     def ingest(self, file_list):
         """
