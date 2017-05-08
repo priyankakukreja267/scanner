@@ -11,18 +11,16 @@ class Kernel:
     scheduling overhead. I don't know if we should do that as well.
     Reply PK: Let's start off small, and then incrementally add that feature
     """
-    def __init__(self):
-        raise NotImplementedError()
-
     def get_input_dtypes(self):
         """
         :return: A list of dtypes 
+        TODO: not used for now
         """
         raise NotImplementedError()
 
     def get_output_dtypes(self):
         """
-        :return: A list of dtypes
+        :return: A list of (video: bool, types: list(dtypes)).
         """
         raise NotImplementedError()
 

@@ -1,13 +1,17 @@
-from .util.unique_id_dict import UniqueIDDict
-from .column_specification import ColumnSpecification
+from util.unique_id_dict import UniqueIDDict
+from column_specification import ColumnSpecification
 from collections import Iterator
 
 import pickle
 import cv2
 import os
+import numpy as np
 
 
 DEFAULT_COLUMN_NAME = "def_col"
+OUTPUT_FRAMERATE = 24
+H264_FOURCC = cv2.VideoWriter_fourcc('H', '2', '6', '4')
+
 
 class _ColumnReader(Iterator):
     """
@@ -132,22 +136,25 @@ class _DataColumnWriter(_ColumnWriter):
 
 
 class _VideoColumnWriter(_ColumnWriter):
-    def _open_next_file(self):
+    def _open_next_file(self, shape):
         print("**** Warning: writing to video is poorly supported for now.")
-        fourcc = cv2.VideoWriter_fourcc('H', '2', '6', '4')
+
         # TODO: have a way to set output parameters
-        self.current_file = cv2.VideoWriter(self.files[0], fourcc, 20.0, (640, 480))
+        self.current_file = cv2.VideoWriter(self.files[0], H264_FOURCC, OUTPUT_FRAMERATE, shape)
+        self._opened = True
 
     def __init__(self, files):
         self.files = files
-        self._open_next_file()
+        self._opened = False
 
     def write_row(self, frame):
+        if not self._opened:
+            self._open_next_file(frame.shape)
         self.current_file.write(frame[:, :, ::-1])
 
     def next_file(self):
         self.current_file.release()
-        self._open_next_file()
+        self._opened = False
 
     def close(self):
         self.current_file.release()
@@ -165,7 +172,7 @@ class _RowReader(Iterator):
         changed_file = [v[0] for v in values]
         if any(changed_file):
             if not all(changed_file):
-                raise Exception("All inputs do not have the same length!")
+                raise Exception("All input files do not have the same length!")
 
         return any(changed_file), [v[1] for v in values]
 
@@ -232,14 +239,6 @@ class _DatabaseInfo:
 class Database:
     """
     An image database. The database is stored on disk, and streamed as required.
-
-    Usage:
-         - To use a database as input, call table_generators(), which will return a list of TableGenerator objects,
-           one per table in the database. A TableGenerator is a python generator and will sequentially return
-           every row in the table
-         - To add a column to the DB (as output), call add_column() with the name of the new column. This will
-           return a list of TableColumnWriter objects (guaranteed to be in the same order as the TableGenerators
-           returned by table_generators()), on which you can call write_row to write data into successive rows.
     
     Storage model:
          - Video files are stored on disk as video files
@@ -282,7 +281,7 @@ class Database:
 
     def reader(self, column_names):
         """
-        :return: a list of column readers for this column. There will be one per table in the database.
+        :return: a reader for these columns. There will be one per table in the database.
         """
         readers = []
 
@@ -297,7 +296,7 @@ class Database:
     def writer(self, column_names):
         """
         :param column_names: Names of columns the reader should accept
-        :return: 
+        :return: a writer for these columns
         """
         writers = []
 
@@ -310,6 +309,9 @@ class Database:
         return _RowWriter(writers)
 
     def clear_column(self, column_name):
+        if column_name == DEFAULT_COLUMN_NAME:
+            raise Exception("Cannot remove default column")
+
         self.info.del_column(column_name)
 
         for file in self._fnames_for_col(column_name):
@@ -329,10 +331,13 @@ class Database:
         :return: A dictionnary of { column_name => is_video } representing all available columns
          in the database and whether they will be encoded as video.
         """
-        return self.columns.keys()
+        return list(self.columns.keys())
 
     def get_column_dtype(self, name):
         """
         :return: The dtype of the specified column
         """
         return self.columns[name].dtype
+
+    def has_column(self, name):
+        return name in self.columns

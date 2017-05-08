@@ -1,6 +1,4 @@
-from . import database
 import tensorflow as tf
-import numpy as np
 
 
 class QueueManager:
@@ -28,11 +26,10 @@ class QueueManager:
         """
         self.db = db
 
-        self.input_fields = [db.get_column_dtype(name) for name in input_columns]
-        self.input_columns = input_columns
+        self.input_types = [db.get_column_dtype(name) for name in input_columns]
+        self.input_columns = input_columns.copy()
         self.input_reader = db.reader(self.input_columns)
 
-        self.output_fields = None
         self.output_columns = None
 
         # self.input_queue = tf.FIFOQueue(100, self.input_fields)
@@ -42,7 +39,10 @@ class QueueManager:
         """
         :return: A tensor that will dequeue an element from the input queue when run 
         """
-        return tf.placeholder(self.input_fields, name="input_dequeue")
+        placeholders = []
+        for f_name, f_type in zip(self.input_columns, self.input_types):
+            placeholders.append(tf.placeholder(f_type, name="input_dequeue_" + f_name))
+        return placeholders
 
     def enqueue(self, to_queue, colspecs):
         """
@@ -75,4 +75,8 @@ class QueueManager:
                 if changed_file:
                     self.output_writer.next_file()
 
-                self.output_writer.write_row(sess.run(tensor, feed_dict={"input_dequeue": row}))
+                feed_dict = dict()
+                for f_name, val in zip(self.input_columns, row):
+                    feed_dict["input_dequeue_" + f_name + ":0"] = val
+
+                self.output_writer.write_row(sess.run(tensor, feed_dict=feed_dict))
