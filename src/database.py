@@ -2,9 +2,11 @@ from src.util.unique_id_dict import UniqueIDDict
 from src.column_specification import ColumnSpecification
 from collections import Iterator
 # import multiprocessing
+# from multiprocessing import Pool
 # from multiprocessing.dummy import Pool as ThreadPool 
-# import threading
-import concurrent.futures
+# import itertools
+import threading
+# import concurrent.futures
 
 import pickle
 import cv2
@@ -68,9 +70,11 @@ class _DataColumnReader(_ColumnReader):
 
 class _VideoColumnReader(_ColumnReader):
     def _open_next_file(self):
+        print('self.files=')
+        print(self.files)
         self.current_file = cv2.VideoCapture(self.files[0], cv2.CAP_FFMPEG)
         if not self.current_file.isOpened():
-            raise Exception("Could not open {}.".format(self.files[0]))
+            raise Exception("Could not open {}".format(self.files[0]))
 
     def __init__(self, files):
         self.files = files
@@ -228,6 +232,7 @@ class _DatabaseInfo:
         self.save()
 
     def save(self):
+        # print(self.path)
         with open(self.path, 'wb') as schema_file:
             pickle.dump(self, schema_file)
 
@@ -256,8 +261,9 @@ class Database:
         """
         :param directory: The directory in which to store any additional database data
         """
+        print('path = %s' % directory)
         self.directory = directory
-        self.info = _DatabaseInfo.load_or_create(os.path.join(directory, ".schema"))
+        self.info = _DatabaseInfo.load_or_create(os.path.join(directory, "db.schema"))
         self.files = self.info.files
         # have a list of files
         self.columns = self.info.columns
@@ -265,7 +271,8 @@ class Database:
     # returns the list of file names for the given column (column_name)
     def _fnames_for_col(self, column_name, file_list):
         if column_name == DEFAULT_COLUMN_NAME:
-            return list(file_list.objects())
+            return file_list
+            # return list(file_list.objects())
 
         if self.columns[column_name].video:
             ext = "mp4"
@@ -286,9 +293,8 @@ class Database:
 
         self.info.add_column(colspec.name, colspec.video, colspec.dtype)
 
-    def get_reader(self, column_names, file_list):
-        readers = []
-
+    def get_reader(self, column_names, file_list, readers):
+        # readers = []
         for column in column_names:
             if column not in self.columns.keys():
                 raise Exception("Unknown column {}".format(column))
@@ -297,35 +303,76 @@ class Database:
 
         return readers
 
-    def reader(self, column_names, nThreads=1):
+    def reader(self, column_names, nThreads=4):
         """
         :return: a reader for these columns. There will be one per table in the database.
         """
+        lock = threading.Lock()
         readers = []
-        file_list = self.files
-        pool = ThreadPool(nThreads)
-        readers = pool.starmap(get_reader, zip(itertools.repeat(column_names), file_list))
+        file_list = list(self.files.objects())
+        threads = []
+        chunksize = max(1, int(len(file_list) / nThreads))
+        print('len(file_list)=%s' % (len(file_list)))
+        print('chunksize=%s' % (chunksize))
+        for i in range(nThreads):
+            local_readers = []
+            lo = i*chunksize
+            hi = min(len(file_list), (i+1)*chunksize)
+            if lo >= hi:
+                continue
+            print('lo = %s, hi = %s' % (lo, hi))
+            t = threading.Thread(target=self.get_reader, args=(column_names, file_list[lo : hi], local_readers))
+            threads.append(t)
+            t.start()
+
+            lock.acquire(0)
+            readers.extend(local_readers)
+            lock.release()
+
+        for i in range(len(threads)):
+            threads[i].join()
+
+        print('Read done!')
         return _RowReader(readers)
 
-    def get_writer(self, column_names, file_list):
-        writers = []
-
+    def get_writer(self, column_names, file_list, writers):
         for column in column_names:
             if column not in self.columns.keys():
                 raise Exception("Unknown column {}".format(column))
             video = self.columns[column].video
             writers.append(_ColumnWriter.make_writer(video, self._fnames_for_col(column, file_list))) 
+
         return writers
 
-    def writer(self, column_names, nThreads=1):
+    def writer(self, column_names, nThreads=4):
         """
         :param column_names: Names of columns the reader should accept
         :return: a writer for these columns
         """
+        lock = threading.Lock()
         writers = []
-        file_list = self.files
-        pool = ThreadPool(nThreads)
-        writers = pool.starmap(get_writer, zip(itertools.repeat(column_names), file_list))        
+        file_list = list(self.files.objects())
+        threads = []
+        chunksize = max(1, int(len(file_list) / nThreads))
+        
+        for i in range(nThreads):
+            local_writers = []
+            lo = i*chunksize
+            hi = min(len(file_list), (i+1)*chunksize)
+            if lo >= hi:
+                continue
+            t = threading.Thread(target=self.get_writer, args=(column_names, file_list[lo : hi], local_writers))
+            threads.append(t)
+            t.start()
+
+            lock.acquire(0)
+            writers.extend(local_writers)
+            lock.release()
+
+        for i in range(len(threads)):
+            threads[i].join()
+
+        print('Write done!')            
         return _RowWriter(writers)
 
     def clear_column(self, column_name):

@@ -53,6 +53,7 @@ class TScanner:
 
         # Send kernel output to correct column
         out = kernel.apply(kernel_input_tensors)
+        
         for k_out, col_name in zip(out, output_columns):
             self.column_tensors[col_name] = k_out
 
