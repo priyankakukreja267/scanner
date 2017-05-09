@@ -1,4 +1,4 @@
-import database, queue_manager
+from src import database, queue_manager
 
 class TScanner:
     """

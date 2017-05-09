@@ -4,7 +4,7 @@ import cv2
 
 class Brightness:
     def __init__(self, d=5):
-    	self.delta = d # default delta value
+        self.delta = d # default delta value
         self.input_dtypes = [np.dtype(np.uint8), np.dtype(np.uint8)]
         self.output_dtypes = [np.dtype(np.uint8)]
         print('brightness kernel inited')
@@ -22,11 +22,11 @@ class Brightness:
         return self.output_dtypes
 
     def apply(self, input_image):
-		'''
-		Takes an input_image and adjusts the brightness of the image by delta
-		'''
-		output_image = tf.image.adjust_brightness(input_image, self.delta)
-		return [output_image]
+        """
+        Takes an input_image and adjusts the brightness of the image by delta
+        """
+        output_image = tf.image.adjust_brightness(input_image, self.delta)
+        return [output_image]
 
     def reset(self):
         """

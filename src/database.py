@@ -1,6 +1,10 @@
-from util.unique_id_dict import UniqueIDDict
-from column_specification import ColumnSpecification
+from src.util.unique_id_dict import UniqueIDDict
+from src.column_specification import ColumnSpecification
 from collections import Iterator
+# import multiprocessing
+# from multiprocessing.dummy import Pool as ThreadPool 
+# import threading
+import concurrent.futures
 
 import pickle
 import cv2
@@ -137,7 +141,7 @@ class _DataColumnWriter(_ColumnWriter):
 
 class _VideoColumnWriter(_ColumnWriter):
     def _open_next_file(self, shape):
-        print("**** Warning: writing to video is poorly supported for now.")
+        print("**** Warning: writing to video is poorly supported for now ****")
 
         # TODO: have a way to set output parameters
         self.current_file = cv2.VideoWriter(self.files[0], H264_FOURCC, OUTPUT_FRAMERATE, shape)
@@ -219,7 +223,7 @@ class _DatabaseInfo:
 
     def del_column(self, name):
         if name not in self.columns.keys():
-            raise Exception("Unknown column {}")
+            raise Exception("Unknown column {}".format(name))
         del self.columns[name]
         self.save()
 
@@ -255,11 +259,13 @@ class Database:
         self.directory = directory
         self.info = _DatabaseInfo.load_or_create(os.path.join(directory, ".schema"))
         self.files = self.info.files
+        # have a list of files
         self.columns = self.info.columns
 
-    def _fnames_for_col(self, column_name):
+    # returns the list of file names for the given column (column_name)
+    def _fnames_for_col(self, column_name, file_list):
         if column_name == DEFAULT_COLUMN_NAME:
-            return list(self.files.objects())
+            return list(file_list.objects())
 
         if self.columns[column_name].video:
             ext = "mp4"
@@ -268,6 +274,7 @@ class Database:
 
         return [os.path.join(self.directory, "{}_{}.{}".format(fname, column_name, ext)) for fname in self.files.ids()]
 
+    # adds col to info
     def add_column(self, colspec):
         """
         Adds a column to a database.
@@ -279,33 +286,46 @@ class Database:
 
         self.info.add_column(colspec.name, colspec.video, colspec.dtype)
 
-    def reader(self, column_names):
-        """
-        :return: a reader for these columns. There will be one per table in the database.
-        """
+    def get_reader(self, column_names, file_list):
         readers = []
 
         for column in column_names:
             if column not in self.columns.keys():
                 raise Exception("Unknown column {}".format(column))
             video = self.columns[column].video
-            readers.append(_ColumnReader.make_reader(video, self._fnames_for_col(column)))
+            readers.append(_ColumnReader.make_reader(video, self._fnames_for_col(column, file_list)))
 
+        return readers
+
+    def reader(self, column_names, nThreads=1):
+        """
+        :return: a reader for these columns. There will be one per table in the database.
+        """
+        readers = []
+        file_list = self.files
+        pool = ThreadPool(nThreads)
+        readers = pool.starmap(get_reader, zip(itertools.repeat(column_names), file_list))
         return _RowReader(readers)
 
-    def writer(self, column_names):
-        """
-        :param column_names: Names of columns the reader should accept
-        :return: a writer for these columns
-        """
+    def get_writer(self, column_names, file_list):
         writers = []
 
         for column in column_names:
             if column not in self.columns.keys():
                 raise Exception("Unknown column {}".format(column))
             video = self.columns[column].video
-            writers.append(_ColumnWriter.make_writer(video, self._fnames_for_col(column)))
+            writers.append(_ColumnWriter.make_writer(video, self._fnames_for_col(column, file_list))) 
+        return writers
 
+    def writer(self, column_names, nThreads=1):
+        """
+        :param column_names: Names of columns the reader should accept
+        :return: a writer for these columns
+        """
+        writers = []
+        file_list = self.files
+        pool = ThreadPool(nThreads)
+        writers = pool.starmap(get_writer, zip(itertools.repeat(column_names), file_list))        
         return _RowWriter(writers)
 
     def clear_column(self, column_name):
