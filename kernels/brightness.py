@@ -14,19 +14,9 @@ class Brightness(Kernel):
 
 
     def apply(self, inputs):
-        def pil_histogram(image):
-            self.computed += 1
-            if self.computed % 100 == 0:
-                print("Computed {}".format(self.computed))
-            return np.asarray(Image.fromarray(image).histogram())
-
-        return [tf.py_func(pil_histogram, [inputs[0]], [tf.int64])]
-
-
-    def apply(self, inputs):
         def brighten(image):
-            return tf.image.adjust_brightness(Image.fromarray(image), self.delta)
-        
+            return np.asarray(tf.image.adjust_brightness(input_image, self.delta))
+
         return [tf.py_func(brighten, [inputs[0]], [tf.uint8])]
 
     def get_input_dtypes(self):
@@ -36,25 +26,4 @@ class Brightness(Kernel):
         return [(False, np.dtype('uint8'))]
 
     def reset(self):
-        pass
-
-class Brightness:
-    def get_input_dtypes(self):
-        """
-        :return: A list of dtypes 
-        """
-        return self.input_dtypes
-
-    def get_output_dtypes(self):
-        """
-        :return: A list of dtypes
-        """
-        return self.output_dtypes
-
-    def apply(self, input_image):
-
-    def reset(self):
-        """
-        Forces the kernel to forget any internal state
-        """
         pass

@@ -1,17 +1,10 @@
 from src.util.unique_id_dict import UniqueIDDict
 from src.column_specification import ColumnSpecification
 from collections import Iterator
-# import multiprocessing
-# from multiprocessing import Pool
-# from multiprocessing.dummy import Pool as ThreadPool 
-# import itertools
-import threading
-# import concurrent.futures
 
 import pickle
 import cv2
 import os
-import numpy as np
 
 
 DEFAULT_COLUMN_NAME = "def_col"
@@ -73,6 +66,8 @@ class _VideoColumnReader(_ColumnReader):
         self.current_file = cv2.VideoCapture(self.files[0], cv2.CAP_FFMPEG)
 
         if not self.current_file.isOpened():
+            print(os.getcwd())
+            print(os.listdir("../data"))
             raise Exception("Could not open {}".format(self.files[0]))
 
     def __init__(self, files):
@@ -230,6 +225,9 @@ class _DatabaseInfo:
         del self.columns[name]
         self.save()
 
+    def clear_files(self):
+        self.files.reset()
+
     def save(self):
         with open(self.path, 'wb') as schema_file:
             pickle.dump(self, schema_file)
@@ -266,16 +264,29 @@ class Database:
         self.columns = self.info.columns
 
     # returns the list of file names for the given column (column_name)
-    def _fnames_for_col(self, column_name):
+    def _fnames_for_col(self, column_name, split):
         if column_name == DEFAULT_COLUMN_NAME:
-            return list(self.files.objects())
+            return list(split)
 
         if self.columns[column_name].video:
             ext = "mp4"
         else:
             ext = "dat"
 
-        return [os.path.join(self.directory, "{}_{}.{}".format(fname, column_name, ext)) for fname in self.files.ids()]
+        return [os.path.join(self.directory, "{}_{}.{}".format(self.files.get_id(fname), column_name, ext))
+                for fname in split]
+
+    def _split_files(self, nthreads):
+        """
+        :return: a split of the input files into nthreads blocks
+        """
+        fnames = list(self.files.objects())
+        split = []
+        block_size = max(int(len(fnames)/nthreads), 1)
+        for i in range(0, len(fnames), block_size):
+            split.append(fnames[i:i+block_size])
+
+        return split
 
     # adds col to info
     def add_column(self, colspec):
@@ -289,44 +300,69 @@ class Database:
 
         self.info.add_column(colspec.name, colspec.video, colspec.dtype)
 
-    def reader(self, column_names):
+    def readers(self, column_names, nthreads=1):
         """
         :return: a reader for these columns. There will be one per table in the database.
         """
-        readers = []
+        split = self._split_files(nthreads)
+        row_readers = []
 
-        for column in column_names:
-            if column not in self.columns.keys():
-                raise Exception("Unknown column {}".format(column))
-            video = self.columns[column].video
-            readers.append(_ColumnReader.make_reader(video, self._fnames_for_col(column)))
+        for s in split:
+            readers = []
+            for column in column_names:
+                if column not in self.columns.keys():
+                    raise Exception("Unknown column {}".format(column))
+                video = self.columns[column].video
+                readers.append(_ColumnReader.make_reader(video, self._fnames_for_col(column, s)))
 
-        return _RowReader(readers)
+            row_readers.append(_RowReader(readers))
 
-    def writer(self, column_names):
+        return row_readers
+
+    def writers(self, column_names, nthreads=1):
         """
         :param column_names: Names of columns the reader should accept
         :return: a writer for these columns
         """
-        writers = []
+        split = self._split_files(nthreads)
+        row_writers = []
 
-        for column in column_names:
-            if column not in self.columns.keys():
-                raise Exception("Unknown column {}".format(column))
-            video = self.columns[column].video
-            writers.append(_ColumnWriter.make_writer(video, self._fnames_for_col(column)))
+        for s in split:
+            writers = []
+            for column in column_names:
+                if column not in self.columns.keys():
+                    raise Exception("Unknown column {}".format(column))
+                video = self.columns[column].video
+                writers.append(_ColumnWriter.make_writer(video, self._fnames_for_col(column, s)))
 
-        return _RowWriter(writers)
+            row_writers.append(_RowWriter(writers))
+
+        return row_writers
 
     def clear_column(self, column_name):
         if column_name == DEFAULT_COLUMN_NAME:
             raise Exception("Cannot remove default column")
 
+        for file in self._fnames_for_col(column_name, self.files.objects()):
+            print("** Removing {}".format(file))
+            try:
+                os.unlink(file)
+            except FileNotFoundError:
+                pass
+
         self.info.del_column(column_name)
 
-        for file in self._fnames_for_col(column_name):
-            print("** Removing {}".format(file))
-            os.unlink(file)
+    def clear(self):
+        """
+        Deletes all column (except the default column), and removes all files
+        """
+        cols = list(self.info.columns.keys())
+        for col_name in cols:
+            if col_name == DEFAULT_COLUMN_NAME:
+                continue
+            self.clear_column(col_name)
+
+        self.info.clear_files()
 
     def ingest(self, files):
         """
