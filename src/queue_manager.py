@@ -72,6 +72,7 @@ class QueueManager:
             raise Exception(
                 "You must call enqueue first. Also if you haven't done so yet you're doing something wrong.")
 
+        run_metadata = tf.RunMetadata()
         with tf.Session() as sess:
             for changed_file, row in self.input_reader:
                 if changed_file:
@@ -81,7 +82,9 @@ class QueueManager:
                 for f_name, val in zip(self.input_columns, row):
                     feed_dict["input_dequeue_" + f_name + ":0"] = val
 
-                self.output_writer.write_row(sess.run(tensor, feed_dict=feed_dict))
+                self.output_writer.write_row(sess.run(tensor, feed_dict=feed_dict)) #, options=tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE),run_metadata=run_metadata))
+                # tf.contrib.tfprof.model_analyzer.print_model_analysis(tf.get_default_graph(),run_meta=run_metadata,tfprof_options=tf.contrib.tfprof.model_analyzer.PRINT_ALL_TIMING_MEMORY)
+
 
     def do_work(self, sess, tensor, record):
         changed_file = record[0]
