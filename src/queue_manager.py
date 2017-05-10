@@ -97,6 +97,6 @@ class QueueManager:
             thread_pool = [threading.Thread(target=self.run_on_files, args=(sess, tensor, ir, ow)) for (ir, ow) in
                            zip(input_readers, output_writers)]
             for thread in thread_pool:
-                thread.run()
+                thread.start()
             for thread in thread_pool:
                 thread.join()
