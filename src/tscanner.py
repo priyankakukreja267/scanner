@@ -1,4 +1,5 @@
 from src import database, queue_manager
+import multiprocessing
 
 class TScanner:
     """
@@ -45,7 +46,6 @@ class TScanner:
                 raise Exception("Unknown column {}".format(ic))
 
         # Check output columns
-        kernel_output_tensors = []
         for type, name in zip(kernel.get_output_dtypes(), output_columns):
             if name in self.column_tensors:
                 raise Exception("Column {} already defined".format(name))
@@ -64,12 +64,18 @@ class TScanner:
         self.db.add_column(self.column_types[column])
         self.output_columns.append(column)
 
-    def run(self):
+    def run(self, n_threads=None):
         """
         Runs the computation
         :return: A database instance?
         """
+        if n_threads is None:
+            n_threads = multiprocessing.cpu_count()
+
         output = [self.column_tensors[c] for c in self.output_columns]
         colspecs = [self.column_types[c] for c in self.output_columns]
         enqueuer = self.queue_manager.enqueue(output, colspecs)
-        self.queue_manager.t_run_tensor(enqueuer)
+        self.queue_manager.run_tensor(enqueuer, n_threads)
+
+    def clear_db(self):
+        self.db.clear()

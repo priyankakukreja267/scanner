@@ -36,3 +36,6 @@ class UniqueIDDict:
     def ids(self):
         """Returns the IDs in order"""
         return self.obj_to_id.values()
+
+    def reset(self):
+        self.__init__()

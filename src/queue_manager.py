@@ -1,7 +1,7 @@
 import tensorflow as tf
-from multiprocessing import Pool
-from multiprocessing.dummy import Pool as ThreadPool 
+import threading
 import itertools
+
 
 class QueueManager:
     """
@@ -20,6 +20,7 @@ class QueueManager:
         qm.run_tensor(out)
         
     """
+
     def __init__(self, db, input_columns):
         """
         Generate a QueueManager object from a database and a
@@ -30,7 +31,6 @@ class QueueManager:
 
         self.input_types = [db.get_column_dtype(name) for name in input_columns]
         self.input_columns = input_columns.copy()
-        self.input_reader = db.reader(self.input_columns)
 
         self.output_columns = None
 
@@ -59,46 +59,44 @@ class QueueManager:
         # self.output_queue = tf.FIFOQueue(100, self.output_fields)
 
         self.output_columns = [cs.name for cs in colspecs]
-        self.output_writer = self.db.writer(self.output_columns)
 
         return to_queue
 
-    def run_tensor(self, tensor, nThreads=1):
+    def run_on_files(self, sess, tensor, input_reader, output_writer):
         """
-        :param tensor: The enqueue tensor to run
+        Run the tensor sequentially on every file in the input reader, writing to the output
+        writer.
         """
+        print("Started thread")
 
+        for changed_file, row in input_reader:
+            if changed_file:
+                output_writer.next_file()
+
+            feed_dict = dict()
+            for f_name, val in zip(self.input_columns, row):
+                feed_dict["input_dequeue_" + f_name + ":0"] = val
+
+            output_writer.write_row(sess.run(tensor, feed_dict=feed_dict))
+
+    def run_tensor(self, tensor, n_threads=1):
+        """
+        Run the tensor over some number of threads.
+        """
         if self.output_columns is None:
             raise Exception(
                 "You must call enqueue first. Also if you haven't done so yet you're doing something wrong.")
 
-        with tf.Session() as sess:
-            for changed_file, row in self.input_reader:
-                if changed_file:
-                    self.output_writer.next_file()
+        input_readers = self.db.readers(self.input_columns, n_threads)
+        output_writers = self.db.writers(self.output_columns, n_threads)
 
-                feed_dict = dict()
-                for f_name, val in zip(self.input_columns, row):
-                    feed_dict["input_dequeue_" + f_name + ":0"] = val
-
-                self.output_writer.write_row(sess.run(tensor, feed_dict=feed_dict))
-
-    def do_work(self, sess, tensor, record):
-        changed_file = record[0]
-        row = record[1]
-        if changed_file:
-            self.output_writer.next_file()
-
-        feed_dict = dict()
-        for f_name, val in zip(self.input_columns, row):
-            feed_dict["input_dequeue_" + f_name + ":0"] = val
-        self.output_writer.write_row(sess.run(tensor, feed_dict=feed_dict))
-
-    def t_run_tensor(self, tensor, nThreads=1):
-        if self.output_columns is None:
-            raise Exception(
-                "You must call enqueue first. Also if you haven't done so yet you're doing something wrong.")
+        print(input_readers)
+        print(output_writers)
 
         with tf.Session() as sess:
-            pool = ThreadPool(nThreads)
-            pool.starmap(self.do_work, zip(itertools.repeat(sess), itertools.repeat(tensor), self.input_reader))
+            thread_pool = [threading.Thread(target=self.run_on_files, args=(sess, tensor, ir, ow)) for (ir, ow) in
+                           zip(input_readers, output_writers)]
+            for thread in thread_pool:
+                thread.run()
+            for thread in thread_pool:
+                thread.join()
