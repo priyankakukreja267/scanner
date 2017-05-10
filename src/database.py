@@ -139,8 +139,6 @@ class _DataColumnWriter(_ColumnWriter):
 
 class _VideoColumnWriter(_ColumnWriter):
     def _open_next_file(self, shape):
-        print("**** Warning: writing to video is poorly supported for now ****")
-
         # TODO: have a way to set output parameters
         self.current_file = cv2.VideoWriter(self.files[0], H264_FOURCC, OUTPUT_FRAMERATE, shape)
         self._opened = True
@@ -151,8 +149,10 @@ class _VideoColumnWriter(_ColumnWriter):
 
     def write_row(self, frame):
         if not self._opened:
-            self._open_next_file(frame.shape)
+            self._open_next_file(frame.shape[:2])
+            print("Opened new video file")
         self.current_file.write(frame[:, :, ::-1])
+        print("Wrote frame")
 
     def next_file(self):
         self.current_file.release()

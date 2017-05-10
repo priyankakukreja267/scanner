@@ -29,7 +29,6 @@ class Gaussian_Blur(Kernel):
 
         return [tf.py_func(blur, [input_columns[0]], tf.uint8)]
 
-
     def reset(self):
         """
         Forces the kernel to forget any internal state
