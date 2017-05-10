@@ -2,8 +2,7 @@ import tensorflow as tf
 import numpy as np
 import cv2
 
-
-class GaussianBlur:
+class Gaussian_Blur(Kernel):
     def __init__(self, f=5):
         self.filter_size = f
         print('gaussian blurring kernel inited')
