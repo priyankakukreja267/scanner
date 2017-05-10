@@ -1,0 +1,148 @@
+<!DOCTYPE HTML>
+<!--
+	Striped by HTML5 UP
+	html5up.net | @ajlkn
+	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html>
+	<head>
+		<title>15-418 Project: Scanner on Tensorflow</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!--[if lte IE 8]><script src="assets/js/ie/html5shiv.js"></script><![endif]-->
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<!--[if lte IE 8]><link rel="stylesheet" href="assets/css/ie8.css" /><![endif]-->
+	</head>
+	<body>
+
+		<!-- Content -->
+			<div id="content">
+				<div class="inner">
+
+					<!-- Post -->
+						<article class="box post post-excerpt">
+							<header>
+								<!--
+									Note: Titles and subtitles will wrap automatically when necessary, so don't worry
+									if they get too long. You can also remove the <p> entirely if you don't
+									need a subtitle.
+								-->
+								<h2><a href="#">tScanner: Distributed Video Processing in TensorFlow</a></h2>
+								<p>Priyanka Kukreja - Matthieu Felix</p>
+							</header>
+							
+
+<a name="proposal"><h2>Proposal</h2></a>
+<a name="summary"><h3>Summary</h3></a>
+<p>Scanner is a framework that facilitates running complex pipelines or computation graphs on compressed videos across a heterogeneous processing environment. The idea of this project is to determine if Scanner&rsquo;s performance can be improved by replacing its scheduler with a TensorFlow graph generator, and letting TensorFlow orchestrate computation.</p>
+
+<a name="background"><h3>Background</h3></a>
+<p>Scanner is a platform for large scale video analytics. It specializes in visual computing by efficiently managing compressed video data sets and performing computations on heterogeneous clusters (CPUs, GPUs and ASICs for video encoding and decoding). Scanner makes it easy to use computer vision and pixel processing tools. It does this by representing computation as a dataflow graph where each node represents a function and the edges represent the data flowing between different functions. Scanner takes these dataflow graphs and executes them on a cluster of machines, loading videos from and saving results to Scanner DB. TensorFlow is heavily optimized and also uses a DAG to represent its computations, so it&rsquo;s natural to wonder if we can implement Scanner using TensorFlow. </p>
+
+<a name="challenges"><h3>Challenges</h3></a>
+<ul>
+<li>Optimal task scheduling for minimal synchronization overhead and maximal scalability in a heterogeneous environment.</li>
+<li>Using TensorFlow to handle workloads different than its typical machine learning applications. This allows utilizing the best kernel implementation available to the application.</li>
+<li>Working with compressed video requires on-the-fly decoding of frames to limit storage costs.</li>
+</ul>
+<h3>Resources</h3>
+<p>For testing and benchmarking, we will need access to machines with GPUs or high CPU counts, and ideally a cluster of machines.</p>
+
+<a name="gad"><h3>Goals and Deliverables</h3></a>
+<h4>Plan to achieve</h4>
+<ul>
+<li>Define a mapping between the existing kernel interface and the TensorFlow kernel interface, including stateful kernels that can be reset. </li>
+<li>Automatically instantiate multiple TensorFlow DAGs across a cluster </li>
+<li>Demonstrate better performance in Scanner-TensorFlow than vanilla Scanner, or give a precise analysis of reasons that lead us to think this cannot be achieved.</li>
+</ul>
+<h4>Hope to achieve</h4>
+<ul>
+<li>Implement database IO functionality using TensorFlow to feed data from the existing database format into TensorFlow DAG in a streaming fashion</li>
+<li>Support the sampling primitives in the existing Scanner (stride, gather, join) to select rows from the databases </li>
+<li>Use TensorFlow for storing the output of a pipeline into the Scanner DB.</li>
+<li>If our TensorFlow implementation cannot match the speed of the existing Scanner implementation, specify precise improvements that could be made to TensorFlow in order to alleviate the issues we found.</li>
+</ul>
+<h4>Deliverables</h4>
+<ul>
+<li>Live demo of face detection using KrishnaCam</li>
+<li>Graphs of speedup obtained (if any) over the vanilla Scanner implementation</li>
+</ul>
+
+<a name="platform"><h3>Platform choice</h3></a>
+<p>This project is essentially about a change of platform. We think TensorFlow is an appropriate framework in which to tackle the challenges Scanner is facing since its core is a powerful and versatile execution engine. TensorFlow is one of the fastest frameworks available for the tasks for which it is commonly used.</p>
+
+<a name="schedule"><h3>Schedule</h3></a>
+<p>Week 1</p>
+<ul>
+<li>Set up the environment: get Scanner and TensorFlow working on our machines</li>
+<li>Run a simple Scanner kernel in a one-stage TensorFlow pipeline</li>
+<li>Start converting the Scanner scheduler into a TensorFlow graph builder (no distribution across several nodes yet)</li>
+</ul>
+<p>Week 2</p>
+<ul>
+<li>Finish work on converting the scheduler to a TensorFlow graph builder</li>
+</ul>
+<p>Week 3</p>
+<ul>
+<li>Add support for running the TensorFlow computations across several nodes in a cluster.</li>
+<li>Interface TensorFlow computations with the Scanner database system.</li>
+</ul>
+<p>Week 4</p>
+<ul>
+<li>Benchmark our system against vanilla Scanner on different types of workloads and hardware. Analyze the performance of our TensorFlow-based system</li>
+<li>Prepare the final website and presentation.</li>
+</ul>
+
+<a name="references"><h2>References</h2></a>
+<ul>
+<li>Scanner repo on github: <a href="https://www.google.com/url?q=https://github.com/scanner-research/scanner&amp;sa=D&amp;ust=1491876194732000&amp;usg=AFQjCNFiiMwzO2TYro4Ph_zLPXW95Dbt-g">https://github.com/scanner-research/scanner</a></li>
+<li>Rough draft of Scanner research paper: <a href="https://www.google.com/url?q=http://www.cs.cmu.edu/~kayvonf/scratch/sig17/scanner_submit.pdf&amp;sa=D&amp;ust=1491876194733000&amp;usg=AFQjCNEPAtQrIZ6d42HUTZF8TZ3asKA3eg">http://www.cs.cmu.edu/~kayvonf/scratch/sig17/scanner_submit.pdf</a></li>
+
+
+
+
+</ul>
+						</article>
+
+					
+				</div>
+			</div>
+
+		<!-- Sidebar -->
+			<div id="sidebar">
+
+				<!-- Logo -->
+					<h1 id="logo"><a href="#"><img style="height: 50px;" src="images/tf.png"> + <img style="height: 50px;" src="images/scanner.png"></a></h1>
+
+				<!-- Nav -->
+					<nav id="nav">
+						<ul>
+							<li><h4>Proposal</h4></li>
+							<li><a href="#summary">Summary</a></li>
+							<li><a href="#background">Background</a></li>
+							<li><a href="#challenges">Challenges</a></li>
+							<li><a href="#resources">Resources</a></li>
+							<li><a href="#gad">Goals and Deliverables</a></li>
+							<li><a href="#platform">Platform Choice</a></li>
+							<li><h4><a href="#references">References</a></h4></li>
+							<li><a href="checkpoint.html"><h4>Checkpoint</h4></a></li>
+							<li><a href="index.html"><h4>Final Submission</h4></a></li>
+						</ul>
+					</nav>
+
+				<!-- Copyright -->
+					<ul id="copyright">
+						<li>&copy; Priyanka Kukreja &amp; Matthieu Felix</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
+					</ul>
+
+			</div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/skel.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<!--[if lte IE 8]><script src="assets/js/ie/respond.min.js"></script><![endif]-->
+			<script src="assets/js/main.js"></script>
+
+	</body>
+</html>
