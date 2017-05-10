@@ -18,7 +18,7 @@ def func_name(vTable1):
 myscanner = tscanner.TScanner('/home/priyanka/15618/scanner/examples/some_dir/')
 
 # creates 1 table per video each table has a column named index, a column named image_data
-myscanner.ingest(['vid1.mp4', 'vid2.mp4'])
+myscanner.ingest(['./examples/vid.mp4'])
 
 # kernel for gaussian blur
 kBlur = gaussian_blur.Gaussian_Blur(5)

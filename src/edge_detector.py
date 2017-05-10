@@ -7,7 +7,7 @@ import cv2
 class Edge_Detector(Kernel):
     def __init__(self):
         self.input_dtypes = [np.dtype('uint8')]
-        self.output_dtypes = [(False, np.dtype('uint8')), (False, np.dtype('uint8'))] #[np.dtype('uint8')]
+        self.output_dtypes = [(False, np.dtype('uint8'))] #[np.dtype('uint8')]
         print('edge_detector kernel inited')
 
     def get_input_dtypes(self):

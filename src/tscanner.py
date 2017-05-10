@@ -72,4 +72,4 @@ class TScanner:
         output = [self.column_tensors[c] for c in self.output_columns]
         colspecs = [self.column_types[c] for c in self.output_columns]
         enqueuer = self.queue_manager.enqueue(output, colspecs)
-        self.queue_manager.run_tensor(enqueuer)
+        self.queue_manager.t_run_tensor(enqueuer)

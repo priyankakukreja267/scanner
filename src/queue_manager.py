@@ -1,5 +1,7 @@
 import tensorflow as tf
-
+from multiprocessing import Pool
+from multiprocessing.dummy import Pool as ThreadPool 
+import itertools
 
 class QueueManager:
     """
@@ -61,7 +63,7 @@ class QueueManager:
 
         return to_queue
 
-    def run_tensor(self, tensor):
+    def run_tensor(self, tensor, nThreads=1):
         """
         :param tensor: The enqueue tensor to run
         """
@@ -80,3 +82,24 @@ class QueueManager:
                     feed_dict["input_dequeue_" + f_name + ":0"] = val
 
                 self.output_writer.write_row(sess.run(tensor, feed_dict=feed_dict))
+
+    def do_work(self, sess, tensor, record):
+        changed_file = record[0]
+        row = record[1]
+        if changed_file:
+            self.output_writer.next_file()
+
+        feed_dict = dict()
+        for f_name, val in zip(self.input_columns, row):
+            feed_dict["input_dequeue_" + f_name + ":0"] = val
+        self.output_writer.write_row(sess.run(tensor, feed_dict=feed_dict))
+
+
+    def t_run_tensor(self, tensor, nThreads=1):
+        if self.output_columns is None:
+            raise Exception(
+                "You must call enqueue first. Also if you haven't done so yet you're doing something wrong.")
+
+        with tf.Session() as sess:
+            pool = ThreadPool(nThreads)
+            pool.starmap(self.do_work, zip(itertools.repeat(sess), itertools.repeat(tensor), self.input_reader))
