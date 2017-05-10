@@ -160,6 +160,8 @@ class _VideoColumnWriter(_ColumnWriter):
 
     def close(self):
         self.current_file.release()
+        self._opened = False
+        self.files = []
 
 
 class _RowReader(Iterator):
