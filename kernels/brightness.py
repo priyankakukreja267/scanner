@@ -5,7 +5,7 @@ from src.kernel import Kernel
 
 
 class BrightnessAdjustmentKernel(Kernel):
-    def __init__(self, delta):
+    def __init__(self, delta=5):
         self.delta = delta
 
     def apply(self, inputs):

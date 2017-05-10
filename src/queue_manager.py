@@ -94,7 +94,6 @@ class QueueManager:
             feed_dict["input_dequeue_" + f_name + ":0"] = val
         self.output_writer.write_row(sess.run(tensor, feed_dict=feed_dict))
 
-
     def t_run_tensor(self, tensor, nThreads=1):
         if self.output_columns is None:
             raise Exception(
