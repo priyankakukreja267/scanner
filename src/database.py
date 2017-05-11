@@ -141,6 +141,7 @@ class _VideoColumnWriter(_ColumnWriter):
     def _open_next_file(self, shape):
         # TODO: have a way to set output parameters
         self.current_file = cv2.VideoWriter(self.files[0], H264_FOURCC, OUTPUT_FRAMERATE, shape)
+        del self.files[0]
         self._opened = True
 
     def __init__(self, files):

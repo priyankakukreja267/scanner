@@ -1,6 +1,7 @@
 import tensorflow as tf
 import threading
 import itertools
+import profilehooks
 
 
 class QueueManager:
@@ -62,6 +63,7 @@ class QueueManager:
 
         return to_queue
 
+    @profilehooks.profile
     def run_on_files(self, sess, tensor, input_reader, output_writer):
         """
         Run the tensor sequentially on every file in the input reader, writing to the output
