@@ -9,7 +9,7 @@ import os
 
 DEFAULT_COLUMN_NAME = "def_col"
 OUTPUT_FRAMERATE = 24
-H264_FOURCC = cv2.VideoWriter_fourcc('H', '2', '6', '4')
+H264_FOURCC = cv2.VideoWriter_fourcc(*"h264")
 
 
 class _ColumnReader(Iterator):
@@ -141,6 +141,7 @@ class _VideoColumnWriter(_ColumnWriter):
     def _open_next_file(self, shape):
         # TODO: have a way to set output parameters
         self.current_file = cv2.VideoWriter(self.files[0], H264_FOURCC, OUTPUT_FRAMERATE, shape)
+        del self.files[0]
         self._opened = True
 
     def __init__(self, files):
@@ -149,10 +150,10 @@ class _VideoColumnWriter(_ColumnWriter):
 
     def write_row(self, frame):
         if not self._opened:
-            self._open_next_file(frame.shape[:2])
-            print("Opened new video file")
+            self._open_next_file((frame.shape[1], frame.shape[0]))
+            print("Opened new video file with shape {}".format(frame.shape[:2:-1]))
         self.current_file.write(frame[:, :, ::-1])
-        print("Wrote frame")
+        #print("Wrote frame")
 
     def next_file(self):
         self.current_file.release()
@@ -162,6 +163,9 @@ class _VideoColumnWriter(_ColumnWriter):
         self.current_file.release()
         self._opened = False
         self.files = []
+
+    def __del__(self):
+        self.close()
 
 
 class _RowReader(Iterator):
@@ -271,7 +275,7 @@ class Database:
             return list(split)
 
         if self.columns[column_name].video:
-            ext = "mp4"
+            ext = "mkv"
         else:
             ext = "dat"
 
