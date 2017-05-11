@@ -79,6 +79,9 @@ class QueueManager:
 
             output_writer.write_row(sess.run(tensor, feed_dict=feed_dict))
 
+        input_reader.close()
+        output_writer.close()
+
     def run_tensor(self, tensor, n_threads=1):
         """
         Run the tensor over some number of threads.

@@ -25,7 +25,6 @@ class Gaussian_Blur(Kernel):
         Takes an input_image and does custom operations
         '''
         def blur(img):
-            print("Blurred one frame yay!")
             return cv2.GaussianBlur(img, (self.filter_size, self.filter_size), 0)
 
         return [tf.py_func(blur, [input_columns[0]], tf.uint8)]
