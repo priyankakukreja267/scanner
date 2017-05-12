@@ -19,9 +19,9 @@ blur_kernel = Gaussian_Blur(21)
 ed_kernel = Edge_Detector()
 
 tscanner.task(["def_col"], ed_kernel, ["edge_detected"])
-tscanner.task(["def_col"], blur_kernel, ["blurred"])
 tscanner.declare_output("edge_detected")
-tscanner.declare_output("blurred")
+tscanner.task(["def_col"], blur_kernel, ["gaussian_blur"])
+tscanner.declare_output("gaussian_blur")
 
 t0 = time.time()
 #cProfile.run('tscanner.run(n_threads=1)')
