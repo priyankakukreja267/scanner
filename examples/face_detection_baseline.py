@@ -5,6 +5,7 @@ if not matt:
 import time
 import cv2
 import numpy as np
+import profilehooks
 
 
 
@@ -32,36 +33,40 @@ def process_frame(frame):
 	out_frame = draw_boxes(frame, bounding_box)
 	return out_frame
 
-# Read in the video
-# Detect faces
-# Draw bounding boxes
-# Output the video with bounding boxes drawn on it
+@profilehooks.profile
+def run_everything():
+	# Read in the video
+	# Detect faces
+	# Draw bounding boxes
+	# Output the video with bounding boxes drawn on it
 
-if matt:
-	in_file = '?'
-	out_file = '?'
-else:
-	in_file = '/home/priyanka/15618/scanner/examples/clip.mp4'
-	out_file = '/home/priyanka/15618/scanner/examples/detected_faces.avi'
+	if matt:
+		in_file = '../data/kite_short0.mkv'
+		out_file = '../data/kite_short0_detected.mkv'
+	else:
+		in_file = '/home/priyanka/15618/scanner/examples/clip.mp4'
+		out_file = '/home/priyanka/15618/scanner/examples/detected_faces.avi'
 
-capture = cv2.VideoCapture(in_file)
-width = int(capture.get(3))
-height = int(capture.get(4))
-writer = cv2.VideoWriter(out_file, H264_FOURCC, OUTPUT_FRAMERATE, (width, height))
+	capture = cv2.VideoCapture(in_file)
+	width = int(capture.get(3))
+	height = int(capture.get(4))
+	writer = cv2.VideoWriter(out_file, H264_FOURCC, OUTPUT_FRAMERATE, (width, height))
 
-i = 1
-t0 = time.time()
-while(capture.isOpened()):
-    ret, frame = capture.read()
-    if ret==False:
-    	break
-    result = process_frame(frame)
-    writer.write(result)
-    print('Processed frame-%s' % (i))
-    i = i + 1
-t1 = time.time()
+	i = 1
+	t0 = time.time()
+	while(capture.isOpened()):
+		ret, frame = capture.read()
+		if ret==False:
+			break
+		result = process_frame(frame)
+		writer.write(result)
+		print('Processed frame-%s' % (i))
+		i = i + 1
+	t1 = time.time()
 
-print('\nTotal Time: {:.1f}s'.format(t1 - t0))
-speed = float(i-1) / float(t1-t0)
-print('\nProcessing Speed = %s' % (speed))
-cv2.destroyAllWindows()
+	print('\nTotal Time: {:.1f}s'.format(t1 - t0))
+	speed = float(i-1) / float(t1-t0)
+	print('\nProcessing Speed = %s' % (speed))
+	cv2.destroyAllWindows()
+
+run_everything()
