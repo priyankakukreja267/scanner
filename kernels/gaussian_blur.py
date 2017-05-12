@@ -6,6 +6,7 @@ from src.kernel import Kernel
 class Gaussian_Blur(Kernel):
     def __init__(self, f=5):
         self.filter_size = f
+        self.computed = 0        
         print('gaussian blurring kernel inited')
 
     def get_input_dtypes(self):
@@ -25,6 +26,9 @@ class Gaussian_Blur(Kernel):
         Takes an input_image and does custom operations
         '''
         def blur(img):
+            self.computed += 1
+            if self.computed % 100 == 0:
+                print("Computed {}".format(self.computed))            
             return cv2.GaussianBlur(img, (self.filter_size, self.filter_size), 0)
 
         return [tf.py_func(blur, [input_columns[0]], tf.uint8)]

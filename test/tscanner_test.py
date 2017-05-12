@@ -11,7 +11,7 @@ import time
 
 tscanner = TScanner("db_dir" if matt else "./examples/some_dir")
 tscanner.clear_db()
-tscanner.ingest(glob("../data/kite_short*.mkv") if matt else ["./examples/vid1.mp4"])
+tscanner.ingest(glob("../data/kite_short*.mkv") if matt else ["./examples/moana.mp4"])
 tscanner.declare_inputs(["def_col"])
 blur_kernel = Gaussian_Blur(21)
 tscanner.task(["def_col"], blur_kernel, ["gaussian_blur"])

@@ -102,3 +102,12 @@ ENV/
 
 # virtualenv
 my_scanner/
+examples/vid*
+TODO*
+aisehi*
+tensor_profile
+code_profile
+ques
+examples/some_dir/
+test/stuff.py
+
