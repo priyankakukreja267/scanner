@@ -68,7 +68,7 @@ class TScanner:
         self.db.add_column(self.column_types[column])
         self.output_columns.append(column)
 
-    def run(self):
+    def run(self, n_threads=None):
         """
         Runs the computation
         :return: A database instance?
@@ -77,7 +77,7 @@ class TScanner:
         output = [self.column_tensors[c] for c in self.output_columns]
         colspecs = [self.column_types[c] for c in self.output_columns]
         enqueuer = self.queue_manager.enqueue_many(output, colspecs)
-        self.queue_manager.run_tensor(enqueuer)
+        self.queue_manager.run_tensor(enqueuer, n_threads)
 
     def clear_db(self):
         self.db.clear()

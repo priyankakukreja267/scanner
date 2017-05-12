@@ -105,7 +105,7 @@ class QueueManager:
         return zip(*args)
 
     @profilehooks.profile
-    def run_tensor(self, tensor):
+    def run_tensor(self, tensor, n_threads=None):
         """
         Run the tensor over some number of threads.
         """
@@ -131,7 +131,12 @@ class QueueManager:
                 for c_name, c_value in zip(self.input_columns, row):
                     feed_dict[self._make_placeholder_name(i_row, c_name) + ":0"] = c_value
 
-            with tf.Session() as sess:
+            if n_threads != None:
+                kwargs = {"config": tf.ConfigProto(intra_op_parallelism_threads=n_threads)}
+            else:
+                kwargs = dict()
+
+            with tf.Session(**kwargs) as sess:
                 output_rows = list(zip(*sess.run(tensor, feed_dict=feed_dict)))
             print(len(output_rows))
 

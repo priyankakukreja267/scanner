@@ -11,7 +11,7 @@ from kernels.draw_box import DrawBoxKernel
 
 tscanner = TScanner("db_dir" if matt else "./examples/some_dir")
 tscanner.clear_db()
-tscanner.ingest(["../data/kite_short0.mkv", "../data/kite_short1.mkv"] if matt else ["./examples/vid1.mp4"])
+tscanner.ingest(["../data/moana.mp4"] if matt else ["./examples/vid1.mp4"])
 tscanner.declare_inputs(["def_col"])
 
 tscanner.task(["def_col"], FaceDetectorKernel(), ["face_detected"])

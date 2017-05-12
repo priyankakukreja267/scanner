@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 from src.kernel import Kernel
-from PIL import Image
 import cv2
 
 
@@ -12,9 +11,6 @@ eye_cascade = cv2.CascadeClassifier("data/haarcascade_eye.xml")
 class FaceDetectorKernel(Kernel):
     """
     """
-    def __init__(self):
-        # for debug
-        self.computed = 0
 
     def apply(self, inputs):
         def face_detector(image):
