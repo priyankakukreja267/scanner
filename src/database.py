@@ -306,11 +306,11 @@ class Database:
 
         self.info.add_column(colspec.name, colspec.video, colspec.dtype)
 
-    def readers(self, column_names, nthreads=1):
+    def readers(self, column_names, threads=1):
         """
         :return: a reader for these columns. There will be one per table in the database.
         """
-        split = self._split_files(nthreads)
+        split = self._split_files(threads)
         row_readers = []
 
         for s in split:
@@ -325,12 +325,12 @@ class Database:
 
         return row_readers
 
-    def writers(self, column_names, nthreads=1):
+    def writers(self, column_names, threads=1):
         """
         :param column_names: Names of columns the reader should accept
         :return: a writer for these columns
         """
-        split = self._split_files(nthreads)
+        split = self._split_files(threads)
         row_writers = []
 
         for s in split:
