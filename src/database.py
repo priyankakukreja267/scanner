@@ -164,8 +164,6 @@ class _VideoColumnWriter(_ColumnWriter):
         self._opened = False
         self.files = []
 
-    def __del__(self):
-        self.close()
 
 
 class _RowReader(Iterator):

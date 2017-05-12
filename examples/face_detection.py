@@ -11,7 +11,7 @@ from kernels.draw_box import DrawBoxKernel
 
 tscanner = TScanner("db_dir" if matt else "./examples/some_dir")
 tscanner.clear_db()
-tscanner.ingest(glob("../data/kite_short*.mkv") if matt else ["./examples/vid1.mp4"])
+tscanner.ingest(["../data/kite_short0.mkv", "../data/kite_short1.mkv"] if matt else ["./examples/vid1.mp4"])
 tscanner.declare_inputs(["def_col"])
 
 tscanner.task(["def_col"], FaceDetectorKernel(), ["face_detected"])
@@ -20,6 +20,6 @@ tscanner.declare_output("boxed")
 
 t0 = time.time()
 #cProfile.run('tscanner.run(n_threads=1)')
-tscanner.run(n_threads=4)
+tscanner.run()
 t1 = time.time()
 print('time taken in tscanner.run() = %s' % (t1-t0))

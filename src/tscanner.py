@@ -24,9 +24,10 @@ class TScanner:
 
     def declare_inputs(self, columns):
         self.queue_manager = queue_manager.QueueManager(self.db, columns)
-        input_tensor = self.queue_manager.dequeue()
+        input_tensors = list(zip(*self.queue_manager.dequeue_many()))
+        print(input_tensors)
         for i_c, c in enumerate(columns):
-            self.input_tensors[c] = input_tensor[i_c]
+            self.input_tensors[c] = input_tensors[i_c]
 
     def task(self, input_columns, kernel, output_columns):
         """
@@ -35,6 +36,9 @@ class TScanner:
         :param kernel: The kernel to run
         :param output_columns: (list of strings) The columns in which to write output from the kernel
         """
+        if self.queue_manager is None:
+            raise Exception("Call declare inputs first")
+
         # Check input columns
         kernel_input_tensors = []
         for ic in input_columns:
@@ -52,7 +56,7 @@ class TScanner:
             self.column_types[name] = database.ColumnSpecification(name, video=type[0], dtype=type[1])
 
         # Send kernel output to correct column
-        out = kernel.apply(kernel_input_tensors)
+        out = list(zip(*[kernel.apply(t) for t in zip(*kernel_input_tensors)]))
         
         for k_out, col_name in zip(out, output_columns):
             self.column_tensors[col_name] = k_out
@@ -64,18 +68,16 @@ class TScanner:
         self.db.add_column(self.column_types[column])
         self.output_columns.append(column)
 
-    def run(self, n_threads=None):
+    def run(self):
         """
         Runs the computation
         :return: A database instance?
         """
-        if n_threads is None:
-            n_threads = multiprocessing.cpu_count()
 
         output = [self.column_tensors[c] for c in self.output_columns]
         colspecs = [self.column_types[c] for c in self.output_columns]
-        enqueuer = self.queue_manager.enqueue(output, colspecs)
-        self.queue_manager.run_tensor(enqueuer, n_threads)
+        enqueuer = self.queue_manager.enqueue_many(output, colspecs)
+        self.queue_manager.run_tensor(enqueuer)
 
     def clear_db(self):
         self.db.clear()

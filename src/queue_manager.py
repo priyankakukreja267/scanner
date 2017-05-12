@@ -2,6 +2,8 @@ import tensorflow as tf
 import threading
 import itertools
 import profilehooks
+import numpy as np
+import datetime
 
 
 class QueueManager:
@@ -32,23 +34,29 @@ class QueueManager:
 
         self.input_types = [db.get_column_dtype(name) for name in input_columns]
         self.input_columns = input_columns.copy()
-        self.batch_size = 50
+        self.batch_size = batch_size
 
         self.output_columns = None
-
-        # self.input_queue = tf.FIFOQueue(100, self.input_fields)
         # self.output_queue = None
 
-    def dequeue(self):
+    @staticmethod
+    def _make_placeholder_name(item, f_name):
+        return "input_dequeue_" + str(item) + "_" + f_name
+
+    def dequeue_many(self):
         """
         :return: A tensor that will dequeue an element from the input queue when run 
         """
-        placeholders = []
-        for f_name, f_type in zip(self.input_columns, self.input_types):
-            placeholders.append(tf.placeholder(f_type, name="input_dequeue_" + f_name))
-        return placeholders
+        items = []
+        for item in range(self.batch_size):
+            placeholders = []
+            for f_name, f_type in zip(self.input_columns, self.input_types):
+                placeholders.append(tf.placeholder(f_type, name=self._make_placeholder_name(item, f_name)))
+            items.append(placeholders)
 
-    def enqueue(self, to_queue, colspecs):
+        return items
+
+    def enqueue_many(self, to_queue, colspecs):
         """
         :param to_queue: A list or tuple tensor with the types specified in colspecs
         :param colspecs: A list or tuple of column specifications
@@ -91,7 +99,13 @@ class QueueManager:
 
         print("Thread done.")
 
-    def run_tensor(self, tensor, n_threads=1):
+    @staticmethod
+    def _grouper(iterable, n):
+        args = [iter(iterable)] * n
+        return zip(*args)
+
+    @profilehooks.profile
+    def run_tensor(self, tensor):
         """
         Run the tensor over some number of threads.
         """
@@ -99,16 +113,33 @@ class QueueManager:
             raise Exception(
                 "You must call enqueue first. Also if you haven't done so yet you're doing something wrong.")
 
-        input_readers = self.db.readers(self.input_columns, threads=n_threads)
-        output_writers = self.db.writers(self.output_columns, threads=n_threads)
+        input_reader = self.db.readers(self.input_columns)[0]
+        output_writer = self.db.writers(self.output_columns)[0]
 
-        print(input_readers)
-        print(output_writers)
+        packets = self._grouper(input_reader, self.batch_size)
 
-        with tf.Session() as sess:
-            thread_pool = [threading.Thread(target=self.run_on_files, args=(sess, tensor, ir, ow)) for (ir, ow) in
-                           zip(input_readers, output_writers)]
-            for thread in thread_pool:
-                thread.start()
-            for thread in thread_pool:
-                thread.join()
+        frames = 0
+        start_time = datetime.datetime.now()
+        for packet in packets:
+            changes = []
+            feed_dict = dict()
+            for i_row, (changed_file, row) in enumerate(packet):
+                if changed_file:
+                    print("change on ", i_row)
+                    changes.append(i_row)
+
+                for c_name, c_value in zip(self.input_columns, row):
+                    feed_dict[self._make_placeholder_name(i_row, c_name) + ":0"] = c_value
+
+            with tf.Session() as sess:
+                output_rows = list(zip(*sess.run(tensor, feed_dict=feed_dict)))
+            print(len(output_rows))
+
+            for i_row, row in enumerate(output_rows):
+                if i_row in changes:
+                    output_writer.next_file()
+                output_writer.write_row(row)
+
+            frames += self.batch_size
+            time_delta = datetime.datetime.now() - start_time
+            print("Packet done. Computed {} frames in {}, {} fps.".format(frames, time_delta, frames / time_delta.total_seconds()))
