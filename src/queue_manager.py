@@ -22,7 +22,7 @@ class QueueManager:
         
     """
 
-    def __init__(self, db, input_columns):
+    def __init__(self, db, input_columns, batch_size=50):
         """
         Generate a QueueManager object from a database and a
         :param db: A Database object
@@ -32,6 +32,7 @@ class QueueManager:
 
         self.input_types = [db.get_column_dtype(name) for name in input_columns]
         self.input_columns = input_columns.copy()
+        self.batch_size = 50
 
         self.output_columns = None
 
@@ -44,7 +45,7 @@ class QueueManager:
         """
         placeholders = []
         for f_name, f_type in zip(self.input_columns, self.input_types):
-            placeholders.append(tf.placeholder(f_type, name="input_dequeue_" + f_name))
+            placeholders.append(tf.placeholder(f_type, name="input_dequeue_" + f_name + "_" + ))
         return placeholders
 
     def enqueue(self, to_queue, colspecs):
@@ -88,7 +89,9 @@ class QueueManager:
         input_reader.close()
         output_writer.close()
 
-    def run_tensor(self, tensor, n_threads=1):
+        print("Thread done.")
+
+    def run_tensor(self, tensor):
         """
         Run the tensor over some number of threads.
         """
@@ -96,11 +99,11 @@ class QueueManager:
             raise Exception(
                 "You must call enqueue first. Also if you haven't done so yet you're doing something wrong.")
 
-        input_readers = self.db.readers(self.input_columns, n_threads)
-        output_writers = self.db.writers(self.output_columns, n_threads)
+        input_reader = self.db.readers(self.input_columns)[0]
+        output_writer = self.db.writers(self.output_columns)[0]
 
-        print(input_readers)
-        print(output_writers)
+        print(input_reader)
+        print(output_writer)
 
         with tf.Session() as sess:
             thread_pool = [threading.Thread(target=self.run_on_files, args=(sess, tensor, ir, ow)) for (ir, ow) in
