@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from src.kernel import Kernel
 from PIL import Image
+import cv2
 
 
 class HistogramKernel(Kernel):
@@ -9,15 +10,10 @@ class HistogramKernel(Kernel):
     For now this is in python, which sucks.
     """
     def __init__(self, flag='pil'):
-        # for debug
         self.flag = flag
-        self.computed = 0
 
     def apply(self, inputs):
         def pil_histogram(image):
-            self.computed += 1
-            if self.computed % 100 == 0:
-                print("Computed {}".format(self.computed))
             return np.asarray(Image.fromarray(image).histogram())
 
         def opencv_histogram(image):

@@ -22,7 +22,7 @@ class QueueManager:
         
     """
 
-    def __init__(self, db, input_columns):
+    def __init__(self, db, input_columns, batch_size=50):
         """
         Generate a QueueManager object from a database and a
         :param db: A Database object
@@ -32,6 +32,7 @@ class QueueManager:
 
         self.input_types = [db.get_column_dtype(name) for name in input_columns]
         self.input_columns = input_columns.copy()
+        self.batch_size = 50
 
         self.output_columns = None
 
@@ -63,13 +64,14 @@ class QueueManager:
 
         return to_queue
 
-    @profilehooks.profile
+    #@profilehooks.profile
     def run_on_files(self, sess, tensor, input_reader, output_writer):
         """
         Run the tensor sequentially on every file in the input reader, writing to the output
         writer.
         """
         print("Started thread")
+        computed = 0
 
         for changed_file, row in input_reader:
             if changed_file:
@@ -80,9 +82,14 @@ class QueueManager:
                 feed_dict["input_dequeue_" + f_name + ":0"] = val
 
             output_writer.write_row(sess.run(tensor, feed_dict=feed_dict))
+            computed += 1
+            if computed % 100 == 0:
+                print("Processed {} frames".format(computed))
 
         input_reader.close()
         output_writer.close()
+
+        print("Thread done.")
 
     def run_tensor(self, tensor, n_threads=1):
         """
@@ -92,8 +99,8 @@ class QueueManager:
             raise Exception(
                 "You must call enqueue first. Also if you haven't done so yet you're doing something wrong.")
 
-        input_readers = self.db.readers(self.input_columns, n_threads)
-        output_writers = self.db.writers(self.output_columns, n_threads)
+        input_readers = self.db.readers(self.input_columns, threads=n_threads)
+        output_writers = self.db.writers(self.output_columns, threads=n_threads)
 
         print(input_readers)
         print(output_writers)
