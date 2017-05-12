@@ -91,7 +91,7 @@ class QueueManager:
 
         print("Thread done.")
 
-    def run_tensor(self, tensor):
+    def run_tensor(self, tensor, n_threads=1):
         """
         Run the tensor over some number of threads.
         """
@@ -99,11 +99,11 @@ class QueueManager:
             raise Exception(
                 "You must call enqueue first. Also if you haven't done so yet you're doing something wrong.")
 
-        input_reader = self.db.readers(self.input_columns)[0]
-        output_writer = self.db.writers(self.output_columns)[0]
+        input_readers = self.db.readers(self.input_columns, threads=n_threads)
+        output_writers = self.db.writers(self.output_columns, threads=n_threads)
 
-        print(input_reader)
-        print(output_writer)
+        print(input_readers)
+        print(output_writers)
 
         with tf.Session() as sess:
             thread_pool = [threading.Thread(target=self.run_on_files, args=(sess, tensor, ir, ow)) for (ir, ow) in
