@@ -1,7 +1,7 @@
 .idea/
 data/
 doc/
-test/db_dir
+**/db_dir
 test/frames
 
 ### Python template

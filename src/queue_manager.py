@@ -63,13 +63,14 @@ class QueueManager:
 
         return to_queue
 
-    @profilehooks.profile
+    #@profilehooks.profile
     def run_on_files(self, sess, tensor, input_reader, output_writer):
         """
         Run the tensor sequentially on every file in the input reader, writing to the output
         writer.
         """
         print("Started thread")
+        computed = 0
 
         for changed_file, row in input_reader:
             if changed_file:
@@ -80,6 +81,9 @@ class QueueManager:
                 feed_dict["input_dequeue_" + f_name + ":0"] = val
 
             output_writer.write_row(sess.run(tensor, feed_dict=feed_dict))
+            computed += 1
+            if computed % 100 == 0:
+                print("Processed {} frames".format(computed))
 
         input_reader.close()
         output_writer.close()
