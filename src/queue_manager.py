@@ -45,7 +45,7 @@ class QueueManager:
         """
         placeholders = []
         for f_name, f_type in zip(self.input_columns, self.input_types):
-            placeholders.append(tf.placeholder(f_type, name="input_dequeue_" + f_name + "_" + ))
+            placeholders.append(tf.placeholder(f_type, name="input_dequeue_" + f_name))
         return placeholders
 
     def enqueue(self, to_queue, colspecs):
